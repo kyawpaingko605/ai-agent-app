@@ -1,0 +1,14 @@
+# API Key တွေပါတဲ့ ဖိုင်
+.env
+
+# Python ရဲ့ အမှိုက်ဖိုင်တွေ
+__pycache__/
+*.pyc
+
+# IDE ဖိုင်တွေ
+.vscode/
+.idea/
+
+# တခြားဖိုင်တွေ
+venv/
+.DS_Store
