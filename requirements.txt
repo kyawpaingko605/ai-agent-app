@@ -3,3 +3,4 @@ gunicorn
 google-generativeai
 gspread
 Pillow
+oauth2client
