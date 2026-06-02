@@ -2,4 +2,3 @@ flask
 gunicorn
 google-generativeai
 gspread
-# ကျန်တဲ့ library များ
