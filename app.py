@@ -1,3 +1,6 @@
+import PIL.Image  # ပုံတွေကို processing လုပ်ဖို့
+import io
+import base64
 import os
 from flask import Flask, request, jsonify, render_template, session
 import google.generativeai as genai
