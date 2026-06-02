@@ -1,3 +1,5 @@
 flask
 google-generativeai
 pillow
+gspread
+oauth2client
