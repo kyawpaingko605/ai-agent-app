@@ -6,31 +6,30 @@ import PIL.Image
 import gspread
 from google.oauth2 import service_account
 from flask import Flask, request, jsonify, render_template
+import google.generativeai as genai
 
 app = Flask(__name__)
 
-# Gemini Setup
-genai_api_key = os.environ.get("GEMINI_API_KEY")
-import google.generativeai as genai
-genai.configure(api_key=genai_api_key)
+# API Key စစ်ဆေးခြင်း
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 model = genai.GenerativeModel('gemini-1.5-flash')
 
 def save_to_sheet(bank_name, amount):
     try:
+        # JSON ကို string အနေနဲ့ယူပြီး dict ပြောင်းခြင်း
         creds_json = os.environ.get('SERVICE_ACCOUNT_JSON')
-        if not creds_json:
-            return False, "Environment Variable မတွေ့ရှိပါ"
-        
         creds_dict = json.loads(creds_json)
+        
         scope = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
         creds = service_account.Credentials.from_service_account_info(creds_dict, scopes=scope)
         client = gspread.authorize(creds)
         
+        # Sheet နာမည်အတိအကျ
         sheet = client.open('Walone_Orders').sheet1 
         sheet.append_row([bank_name, amount, "Pending"])
-        return True, "အောင်မြင်သည်"
+        return True, "Success"
     except Exception as e:
-        return False, str(e)
+        return False, str(e) # ဘာ Error လဲဆိုတာကို ဒီမှာ သိနိုင်ပါတယ်
 
 @app.route('/')
 def home():
@@ -41,6 +40,9 @@ def upload_image():
     try:
         data = request.json
         base64_image = data.get("image")
+        if not base64_image:
+            return jsonify({"reply": "ပုံမပါဝင်ပါ"})
+            
         image_data = base64.b64decode(base64_image)
         img = PIL.Image.open(io.BytesIO(image_data))
         
@@ -48,15 +50,20 @@ def upload_image():
         response = model.generate_content([prompt, img])
         reply_text = response.text
         
-        bank, amount = reply_text.split(',')
-        success, msg = save_to_sheet(bank.strip(), amount.strip())
-        
-        if success:
-            return jsonify({"reply": f"{reply_text} - အော်ဒါကို Sheets ထဲသို့ အောင်မြင်စွာ မှတ်တမ်းတင်ပြီးပါပြီ။"})
+        # split လုပ်လို့မရရင် error တက်မှာမို့လို့ try-except သုံးထားပါတယ်
+        parts = reply_text.split(',')
+        if len(parts) == 2:
+            bank, amount = parts
+            success, msg = save_to_sheet(bank.strip(), amount.strip())
+            if success:
+                return jsonify({"reply": f"အောင်မြင်စွာသိမ်းဆည်းပြီးပါပြီ: {bank}, {amount}"})
+            else:
+                return jsonify({"reply": f"Sheet Error: {msg}"})
         else:
-            return jsonify({"reply": f"AI ရလဒ်: {reply_text} (Sheet Error: {msg})"})
+            return jsonify({"reply": f"AI ရလဒ်: {reply_text} (Format မမှန်ပါ)"})
+            
     except Exception as e:
-        return jsonify({"reply": f"Error ဖြစ်နေသည်: {str(e)}"})
+        return jsonify({"reply": f"Server Error: {str(e)}"})
 
 if __name__ == '__main__':
     app.run()
