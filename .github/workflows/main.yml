@@ -1,0 +1,70 @@
+name: Build Android APK with Buildozer
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.10"
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    # နောက်တစ်ကြိမ် Build ရင် ပိုမြန်စေဖို့ Buildozer global folder ကို Cache မှတ်ထားမယ်
+    - name: Cache Buildozer global directory
+      uses: actions/cache@v4
+      with:
+        path: ~/.buildozer
+        key: ${{ runner.os }}-buildozer-${{ hashFiles('**/buildozer.spec') }}
+        restore-keys: |
+          ${{ runner.os }}-buildozer-
+
+    - name: Install System Dependencies for Buildozer
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential ccache git libffi-dev libssl-dev autoconf automake \
+          libtool pkg-config zlib1g-dev xclip libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev \
+          libsdl2-ttf-dev libgstreamer1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good
+        python -m pip install --upgrade pip
+        pip install buildozer cython kivy
+
+    - name: Build APK using GitHub's Android SDK
+      env:
+        ANDROID_HOME: /usr/local/lib/android/sdk
+        ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+      run: |
+        # buildozer.spec မရှိသေးရင် အလိုအလျောက် ဆောက်မယ်
+        if [ ! -f buildozer.spec ]; then
+          buildozer init
+        fi
+        
+        # GitHub Runner ရဲ့ SDK လမ်းကြောင်းအတိုင်း ပြင်ဆင်မယ်
+        sed -i 's|#android.sdk_path =|android.sdk_path = /usr/local/lib/android/sdk|g' buildozer.spec
+        
+        # မေးခွန်းအားလုံးကို auto-yes ဖြေပြီး APK ထုတ်မယ်
+        yes | buildozer -v android debug
+
+    # Build အောင်မြင်ပြီးထွက်လာတဲ့ APK ကို Web Page မှာ Download ဆွဲနိုင်အောင် တင်ပေးမယ့်အဆင့်
+    - name: Upload APK Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: myanmar-ai-human-brain-apk
+        path: bin/*.apk
