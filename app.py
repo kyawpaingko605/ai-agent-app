@@ -1,9 +1,10 @@
 import os
 import io
 import base64
+import json
 import PIL.Image
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+from google.oauth2 import service_account
 from flask import Flask, request, jsonify, render_template, session
 import google.generativeai as genai
 
@@ -14,13 +15,17 @@ app.secret_key = 'walone_secret_key_123'
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 model = genai.GenerativeModel('gemini-1.5-flash')
 
-# Google Sheets Function
+# Google Sheets Function (ပြင်ဆင်ပြီး)
 def save_to_sheet(bank_name, amount):
     try:
-        scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-        creds = ServiceAccountCredentials.from_json_keyfile_name('credentials.json', scope)
+        # Environment Variable ထဲက JSON ကို ယူခြင်း
+        creds_json = os.environ.get('SERVICE_ACCOUNT_JSON')
+        creds_dict = json.loads(creds_json)
+        
+        scope = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
+        creds = service_account.Credentials.from_service_account_info(creds_dict, scopes=scope)
         client = gspread.authorize(creds)
-        # သင့် Google Sheet နာမည်ကို ထည့်ပါ
+        
         sheet = client.open('Walone_Orders').sheet1 
         sheet.append_row([bank_name, amount, "Pending"])
         return True
@@ -56,11 +61,14 @@ def upload_image():
     
     # Google Sheets ထဲ သိမ်းခြင်း
     try:
+        # AI ကပေးတဲ့ output မှာ comma တွေပါနိုင်လို့ သတိထားပါ
         bank, amount = reply_text.split(',')
-        save_to_sheet(bank.strip(), amount.strip())
-        final_reply = f"{reply_text} - အော်ဒါကို Sheets ထဲသို့ အောင်မြင်စွာ မှတ်တမ်းတင်ပြီးပါပြီ။"
-    except:
-        final_reply = f"AI ရလဒ်: {reply_text} (Sheet ထဲ မသိမ်းနိုင်ခဲ့ပါ)"
+        if save_to_sheet(bank.strip(), amount.strip()):
+            final_reply = f"{reply_text} - အော်ဒါကို Sheets ထဲသို့ အောင်မြင်စွာ မှတ်တမ်းတင်ပြီးပါပြီ။"
+        else:
+            final_reply = f"AI ရလဒ်: {reply_text} (Sheet ထဲ မသိမ်းနိုင်ခဲ့ပါ - Permission စစ်ဆေးပါ)"
+    except Exception as e:
+        final_reply = f"AI ရလဒ်: {reply_text} (Error: {str(e)})"
         
     return jsonify({"reply": final_reply})
 
