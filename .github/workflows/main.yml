@@ -28,7 +28,7 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    # နောက်တစ်ကြိမ် Build ရင် ပိုမြန်စေဖို့ Buildozer global folder ကို Cache မှတ်ထားမယ်
+    # Build အရှိန်မြှင့်ရန်အတွက် Cache မှတ်ခြင်း
     - name: Cache Buildozer global directory
       uses: actions/cache@v4
       with:
@@ -37,16 +37,18 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-buildozer-
 
+    # လိုအပ်သော System Packages များ ထည့်သွင်းခြင်း
     - name: Install System Dependencies for Buildozer
       run: |
         sudo apt-get update
         sudo apt-get install -y build-essential ccache git libffi-dev libssl-dev autoconf automake \
           libtool pkg-config zlib1g-dev xclip libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev \
-          libsdl2-ttf-dev libgstreamer1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good
+          libsdl2-ttf-dev libgstreamer1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
+          zip unzip curl
         python -m pip install --upgrade pip
         pip install buildozer cython kivy
 
-    # sdkmanager အမှားမတက်အောင် Command-line Tools ကို ကြိုတင် Setup လုပ်ခြင်း
+    # ပြဿနာဖြစ်စေသော sdkmanager အား ကြိုတင်ပြင်ဆင်ခြင်း
     - name: Setup Android SDK Command-line Tools
       run: |
         sudo mkdir -p /usr/local/lib/android/sdk/cmdline-tools
@@ -55,30 +57,38 @@ jobs:
         sudo unzip -q commandlinetools-linux-9477386_latest.zip
         sudo mv cmdline-tools latest
         
-        # Buildozer လမ်းကြောင်းဟောင်းအတွက် Link ချိတ်ပေးခြင်း
+        # Buildozer အဓိက ရှာဖွေမည့် လမ်းကြောင်းဟောင်းသို့ Link ချိတ်ခြင်း
         sudo mkdir -p /usr/local/lib/android/sdk/tools/bin
         sudo ln -sf /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager /usr/local/lib/android/sdk/tools/bin/sdkmanager
 
+    # ဘာအမှားမှမတက်စေရန် စနစ်တကျ Auto-config ပြုလုပ်ပြီး Build ခြင်း
     - name: Build APK using GitHub's Android SDK
       env:
         ANDROID_HOME: /usr/local/lib/android/sdk
         ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
       run: |
-        # buildozer.spec မရှိသေးရင် အလိုအလျောက် ဆောက်မယ်
+        # buildozer.spec ဖိုင် မရှိသေးပါက တည်ဆောက်မည်
         if [ ! -f buildozer.spec ]; then
           buildozer init
         fi
         
-        # GitHub Runner ရဲ့ SDK လမ်းကြောင်းအတိုင်း ပြင်ဆင်မယ်
-        sed -i 's|#android.sdk_path =|android.sdk_path = /usr/local/lib/android/sdk|g' buildozer.spec
+        # 1. Android SDK Path အား GitHub Runner လမ်းကြောင်းအတိုင်း အတင်းသတ်မှတ်မည်
+        sed -i 's|#\s*android.sdk_path =.*|android.sdk_path = /usr/local/lib/android/sdk|g' buildozer.spec
+        sed -i 's|^android.sdk_path =.*|android.sdk_path = /usr/local/lib/android/sdk|g' buildozer.spec
         
-        # NDK r28c နဲ့ ကိုက်ညီအောင် Target API ကို 35 သို့ ပြောင်းလဲခြင်း
-        sed -i 's|android.api = 33|android.api = 35|g' buildozer.spec
+        # 2. New NDK နှင့် ကိုက်ညီစေရန် API Level အား 35 သို့ အတင်းပြောင်းလဲမည်
+        sed -i 's|#\s*android.api =.*|android.api = 35|g' buildozer.spec
+        sed -i 's|^android.api =.*|android.api = 35|g' buildozer.spec
         
-        # မေးခွန်းအားလုံးကို auto-yes ဖြေပြီး APK ထုတ်မယ်
+        # စစ်ဆေးရန်အတွက် ပြင်ဆင်ပြီးသား စာကြောင်းများကို Log တွင် ထုတ်ပြမည်
+        echo "=== Verified Config === "
+        grep -E '^android.sdk_path|^android.api' buildozer.spec
+        echo "========================"
+        
+        # Auto-accept လိုင်စင်များ ဖြေဆိုပြီး Build လုပ်မည်
         yes | buildozer -v android debug
 
-    # Build အောင်မြင်ပြီးထွက်လာတဲ့ APK ကို Web Page မှာ Download ဆွဲနိုင်အောင် တင်ပေးမယ့်အဆင့်
+    # ထွက်လာသည့် APK အား စာမျက်နှာပေါ်တွင် Download ဆွဲနိုင်ရန် တင်ပေးခြင်း
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
