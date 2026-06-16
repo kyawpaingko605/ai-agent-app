@@ -46,6 +46,19 @@ jobs:
         python -m pip install --upgrade pip
         pip install buildozer cython kivy
 
+    # sdkmanager အမှားမတက်အောင် Command-line Tools ကို ကြိုတင် Setup လုပ်ခြင်း
+    - name: Setup Android SDK Command-line Tools
+      run: |
+        sudo mkdir -p /usr/local/lib/android/sdk/cmdline-tools
+        cd /usr/local/lib/android/sdk/cmdline-tools
+        sudo curl -O https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+        sudo unzip -q commandlinetools-linux-9477386_latest.zip
+        sudo mv cmdline-tools latest
+        
+        # Buildozer လမ်းကြောင်းဟောင်းအတွက် Link ချိတ်ပေးခြင်း
+        sudo mkdir -p /usr/local/lib/android/sdk/tools/bin
+        sudo ln -sf /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager /usr/local/lib/android/sdk/tools/bin/sdkmanager
+
     - name: Build APK using GitHub's Android SDK
       env:
         ANDROID_HOME: /usr/local/lib/android/sdk
