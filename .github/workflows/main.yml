@@ -48,20 +48,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install buildozer cython kivy
 
-    # ပြဿနာဖြစ်စေသော sdkmanager အား ကြိုတင်ပြင်ဆင်ခြင်း
-    - name: Setup Android SDK Command-line Tools
-      run: |
-        sudo mkdir -p /usr/local/lib/android/sdk/cmdline-tools
-        cd /usr/local/lib/android/sdk/cmdline-tools
-        sudo curl -O https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-        sudo unzip -q commandlinetools-linux-9477386_latest.zip
-        sudo mv cmdline-tools latest
-        
-        # Buildozer အဓိက ရှာဖွေမည့် လမ်းကြောင်းဟောင်းသို့ Link ချိတ်ခြင်း
-        sudo mkdir -p /usr/local/lib/android/sdk/tools/bin
-        sudo ln -sf /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager /usr/local/lib/android/sdk/tools/bin/sdkmanager
-
-    # ဘာအမှားမှမတက်စေရန် စနစ်တကျ Auto-config ပြုလုပ်ပြီး Build ခြင်း
+    # စနစ်တစ်ခုလုံး၏ SDK/NDK လမ်းကြောင်းများကို စနစ်တကျ သတ်မှတ်ပြီး Build ခြင်း
     - name: Build APK using GitHub's Android SDK
       env:
         ANDROID_HOME: /usr/local/lib/android/sdk
@@ -72,20 +59,24 @@ jobs:
           buildozer init
         fi
         
-        # 1. Android SDK Path အား GitHub Runner လမ်းကြောင်းအတိုင်း အတင်းသတ်မှတ်မည်
+        # 1. GitHub စက်ထဲတွင် အဆင်သင့်ရှိသော SDK နှင့် NDK လမ်းကြောင်းများကို အတင်းသတ်မှတ်မည်
         sed -i 's|#\s*android.sdk_path =.*|android.sdk_path = /usr/local/lib/android/sdk|g' buildozer.spec
         sed -i 's|^android.sdk_path =.*|android.sdk_path = /usr/local/lib/android/sdk|g' buildozer.spec
         
-        # 2. New NDK နှင့် ကိုက်ညီစေရန် API Level အား 35 သို့ အတင်းပြောင်းလဲမည်
-        sed -i 's|#\s*android.api =.*|android.api = 35|g' buildozer.spec
-        sed -i 's|^android.api =.*|android.api = 35|g' buildozer.spec
+        # GitHub Runner တွင် လက်ရှိပါဝင်သော NDK 27.3.13750724 လမ်းကြောင်းအား ပတ်လမ်းကြောင်းပေးခြင်း
+        sed -i 's|#\s*android.ndk_path =.*|android.ndk_path = /usr/local/lib/android/sdk/ndk/27.3.13750724|g' buildozer.spec
+        sed -i 's|^android.ndk_path =.*|android.ndk_path = /usr/local/lib/android/sdk/ndk/27.3.13750724|g' buildozer.spec
+        
+        # 2. ပါရှိပြီးသား NDK ဗားရှင်းနှင့် အကိုက်ညီဆုံးဖြစ်အောင် API Level ကို ၃၄ သို့ ပြောင်းလဲမည်
+        sed -i 's|#\s*android.api =.*|android.api = 34|g' buildozer.spec
+        sed -i 's|^android.api =.*|android.api = 34|g' buildozer.spec
         
         # စစ်ဆေးရန်အတွက် ပြင်ဆင်ပြီးသား စာကြောင်းများကို Log တွင် ထုတ်ပြမည်
         echo "=== Verified Config === "
-        grep -E '^android.sdk_path|^android.api' buildozer.spec
+        grep -E '^android.sdk_path|^android.ndk_path|^android.api' buildozer.spec
         echo "========================"
         
-        # Auto-accept လိုင်စင်များ ဖြေဆိုပြီး Build လုပ်မည်
+        # အလိုအလျောက် လိုင်စင်များ ဖြေဆိုပြီး အမှားကင်းကင်းဖြင့် APK ထုတ်မည်
         yes | buildozer -v android debug
 
     # ထွက်လာသည့် APK အား စာမျက်နှာပေါ်တွင် Download ဆွဲနိုင်ရန် တင်ပေးခြင်း
