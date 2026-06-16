@@ -72,6 +72,9 @@ jobs:
         # GitHub Runner ရဲ့ SDK လမ်းကြောင်းအတိုင်း ပြင်ဆင်မယ်
         sed -i 's|#android.sdk_path =|android.sdk_path = /usr/local/lib/android/sdk|g' buildozer.spec
         
+        # NDK r28c နဲ့ ကိုက်ညီအောင် Target API ကို 35 သို့ ပြောင်းလဲခြင်း
+        sed -i 's|android.api = 33|android.api = 35|g' buildozer.spec
+        
         # မေးခွန်းအားလုံးကို auto-yes ဖြေပြီး APK ထုတ်မယ်
         yes | buildozer -v android debug
 
